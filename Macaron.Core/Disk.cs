@@ -1,6 +1,6 @@
 namespace Macaron.Core
 {
-    public class Disk : IDisk
+    public class Disk
     {
         public void ConvertToImg()
         {
