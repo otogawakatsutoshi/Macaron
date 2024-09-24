@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AssemblyName>macaron</AssemblyName>
     <ToolCommandName>macaron</ToolCommandName>
     <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -10,7 +11,6 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <InformationalVersion>1.0.0-pre</InformationalVersion> <!-- 詳細バージョン prerelease+時間などの詳細 -->
-    <Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
@@ -25,7 +25,7 @@
     <DefineConstants>LINUX</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Macaron\Macaron.csproj" />
+    <ProjectReference Include="..\Macaron.Core\Macaron.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />

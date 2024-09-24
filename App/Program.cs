@@ -1,12 +1,14 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.CommandLine;
-using Macaron;
-
+using System.Linq;
+using Macaron.Core;
 
 class Program
 {
+    const string catalogURL = "https://swscan.apple.com/content/catalogs/others/index-10.15-10.14-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog";
     public static AssemblyInformationalVersionAttribute InformationVersionAttribute
     {
         get {
@@ -27,9 +29,14 @@ class Program
     static async System.Threading.Tasks.Task<int> Main(string[] args)
     {
         // コマンドラインオプションの定義
-        var modelOption = new Option<string[]>(
+
+        var modelOption = new Option<string>(
             new[] { "-m", "--model" },
             "System model identifier to use (otherwise this machine's model is used). This can be specified multiple times to download multiple models in a single run."
+        );
+        var getCurrentModelOption = new Option<bool>(
+            new[] { "--get-currentmodel" },
+            "System model identifier to use (otherwise this machine's model is used)."
         );
 
         var installOption = new Option<bool>(
@@ -58,51 +65,124 @@ class Program
             "Specify an exact product ID to download (ie. '031-0787'), currently useful only for cases where a model has multiple BootCamp ESDs available and is not downloading the desired version according to the post date."
         );
 
-        var versionOption = new Option<bool>(
-            new[] { "-V", "--version" },
-            "Output the version of the application."
-        );
+        // var versionOption = new Option<bool>(
+        //     new[] { "-V", "--version" },
+        //     "Output the version of the application."
+        // );
 
         // ルートコマンドの定義
         var rootCommand = new RootCommand
         {
             modelOption,
+            getCurrentModelOption,
             installOption,
+            downloadOption,
             outputDirOption,
             keepFilesOption,
             productIdOption,
-            versionOption
+            // versionOption
         };
 
         rootCommand.Description = "BootCamp installer downloader and extractor.";
 
         // コマンドが実行されたときの処理を設定
         // ここでパースされた引数を受け取る。
-        rootCommand.SetHandler((string[] model, bool install, string outputDir, bool keepFiles, string productId, bool version) =>
+        rootCommand.SetHandler((string model, bool getCurrentModel, bool download, bool install, string outputDir, bool keepFiles, string productId) =>
         {
-            if (version)
+            if (getCurrentModel)
             {
-                ShowVersion();
-                return;
+                GetCurrentModelHandler();
+            } else if (download)
+            {
+                DownloadHandler(model, outputDir);
             }
-
             // MainProjectのロジックを呼び出す
-            Run(model, outputDir, install, keepFiles, productId);
-        },modelOption, installOption, outputDirOption, keepFilesOption, productIdOption, versionOption);
+            // Run(model, outputDir, install, keepFiles, productId);
+        // }, modelOption, getCurrentModelOption, downloadOption, installOption, outputDirOption, keepFilesOption, productIdOption, versionOption);
+        }, modelOption, getCurrentModelOption, downloadOption, installOption, outputDirOption, keepFilesOption, productIdOption);
 
         // コマンドの実行
         return await rootCommand.InvokeAsync(args);
     }
 
-    public static void DownloadHandler(string url, string destination)
+    public static async void DownloadHandler(string model, string outputDir)
     {
 
-        EDS.DownloadFile()
+        // Fetch BootCamp ESDs by reading data from the software update catalog.
+        var bootcampList = await EDS.FetchBootCampDrivers(catalogURL, model);
 
+        // change absolutely path.
+        var fullOutputdir = Path.IsPathFullyQualified(outputDir) 
+            ? outputDir
+            : Path.GetFullPath(outputDir);
+
+        if (!Directory.Exists(fullOutputdir))
+        {
+            Directory.CreateDirectory(fullOutputdir);
+        }
+
+        if (bootcampList.Length == 0)
+        {
+            // No BootCamp ESD found for the specified model.
+            Console.WriteLine("No Boot Camp ESD found for the specified model.");
+            return;
+        }
+
+        // Found a supported ESD, proceed with download and extraction.
+        Console.WriteLine($"Found supported ESD: {bootcampList[0].Version}");
+        string landingDir = Path.Combine(outputDir, $"BootCamp-{bootcampList.First().Version}");
+
+        // Check if the destination folder already exists.
+        if (Directory.Exists(landingDir))
+        {
+            Console.WriteLine($"Final destination folder {landingDir} already exists, please remove it to redownload.");
+            return;
+        }
+
+        string workingDir = Path.Combine(Path.GetTempPath(), $"BootCamp-unpack-{bootcampList.First().Version}");
+        if (!Directory.Exists(workingDir))
+        {
+            Directory.CreateDirectory(workingDir);
+        }
+
+        string packagePath = Path.Combine(workingDir, "BootCampESD.pkg");
+
+        // Download the BootCamp ESD.
+        await EDS.DownloadFile(bootcampList.First().URL, packagePath);
+
+        // Extract the downloaded BootCamp package.
+        Console.WriteLine("Extracting...");
+        ZipFile.ExtractToDirectory(packagePath, workingDir);
+
+        // ExtractWith7Zip(packagePath, workingDir);
+
+        // Install BootCamp if the install flag is set.
+// #if WINDOWS
+//             if (install)
+//             {
+//                 EDS.InstallBootcamp(landingDir);
+//             }
+// #endif
+
+        // Clean up the working directory after extraction or installation.
+        Console.WriteLine("Cleaning up working directory...");
+        Directory.Delete(workingDir, true);
+        // await EDS.DownloadFile(catalogURLから撮ったやつ。, fullOutputdir);
     }
 
+    static void GetCurrentModelHandler()
+    {
+        var model = EDS.GetCurrentModel();
 
-    static void ShowVersion ()
+        if (model is null)
+        {
+            Console.WriteLine("current model is unkown.");
+        }
+        // if --local
+        Console.WriteLine($"current model is {model}.");
+    }
+
+    static void ShowVersionHandler()
     {
         Console.WriteLine($"macaron-cli version {InformationVersionAttribute}");
     }
@@ -204,7 +284,6 @@ class Program
         }
     }
 
-    const string catalogURL = "https://swscan.apple.com/content/catalogs/others/index-10.15-10.14-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog";
     /// <summary>
     /// Main method to download, extract, and optionally install Boot Camp ESDs for specified Mac models.
     /// </summary>

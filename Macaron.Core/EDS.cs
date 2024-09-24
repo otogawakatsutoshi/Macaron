@@ -13,7 +13,7 @@ using Microsoft.Management.Infrastructure;
 using Microsoft.Win32.TaskScheduler;
 #endif
 
-namespace Macaron
+namespace Macaron.Core
 {
 
     public class EDS
