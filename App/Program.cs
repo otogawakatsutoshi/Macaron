@@ -101,6 +101,9 @@ class Program
                 GetCurrentModelHandler();
             } else if (download)
             {
+    #if DEBUG
+            Console.WriteLine("call DownloadHandler");
+    #endif
                 DownloadHandler(model, outputDir);
             }
             // MainProjectのロジックを呼び出す
@@ -115,6 +118,9 @@ class Program
     public static async void DownloadHandler(string model, string outputDir)
     {
 
+    #if DEBUG
+            Console.WriteLine("call DownloadHandler");
+    #endif
         // Fetch BootCamp ESDs by reading data from the software update catalog.
         var bootcampList = await EDS.FetchBootCampDrivers(catalogURL, model);
 
@@ -123,6 +129,9 @@ class Program
             ? outputDir
             : Path.GetFullPath(outputDir);
 
+    #if DEBUG
+            Console.WriteLine("call if BootCamp");
+    #endif
         if (!Directory.Exists(fullOutputdir))
         {
             Directory.CreateDirectory(fullOutputdir);
@@ -135,6 +144,9 @@ class Program
             return;
         }
 
+    #if DEBUG
+            Console.WriteLine("call if BootCamp");
+    #endif
         // Found a supported ESD, proceed with download and extraction.
         Console.WriteLine($"Found supported ESD: {bootcampList[0].Version}");
         string landingDir = Path.Combine(outputDir, $"BootCamp-{bootcampList.First().Version}");

@@ -33,6 +33,9 @@ namespace Macaron.Core
             // model = new Microsoft.VisualBasic.Devices.ComputerInfo().OSFullName;
             modelIdentifier = GetCurrentModelForWindows();
 #elif OSX
+    #if DEBUG
+            Console.WriteLine("call GetCurrentModelForOSX");
+    #endif
             modelIdentifier = GetCurrentModelForOSX();
 #elif LINUX
             modelIdentifier = GetCurrentModelForLinux();
@@ -85,6 +88,9 @@ namespace Macaron.Core
 #if (OSX || DOTNETTOOLS)
         private static string? GetCurrentModelForOSX()
         {
+    #if DEBUG
+            Console.WriteLine("call GetCurrentModelForOSX");
+    #endif
             string? modelIdentifier = null;
             try
             {
@@ -255,11 +261,25 @@ namespace Macaron.Core
         /// <param name="catalogUrl">URL of the software update catalog.</param>
         /// <param name="model">The model identifier to look for.</param>
         /// <returns>An array of BootCamp drivers with version and URL.</returns>
-        public static async Task<(string Version, string URL)[]> FetchBootCampDrivers(string catalogUrl, string model)
+        public async Task<(string Version, string URL)[]> FetchBootCampDrivers(string catalogUrl, string model)
         {
+    #if DEBUG
+            Console.WriteLine("call FetchBootCampDrivers");
+    #endif
             using var client = new HttpClient();
-            var response = await client.GetStringAsync(catalogUrl);
-            var xml = XDocument.Parse(response);
+
+            // var response = await client.GetStringAsync(catalogUrl);
+
+            var destinationPath = "file.txt";
+
+            await DownloadCatalog(client, catalogUrl, destinationPath);
+
+    #if DEBUG
+            Console.WriteLine("call FetchBootCampDrivers");
+    #endif
+            // var xml = XDocument.Parse(response);
+
+            XDocument xml = XDocument.Load(destinationPath);
 
             // Parse the XML to find BootCamp ESDs that support the specified model.
             var bootcampESDs = from dict in xml.Descendants("dict")
@@ -272,5 +292,55 @@ namespace Macaron.Core
 
             return bootcampESDs.ToArray();
         }
+
+        internal async System.Threading.Tasks.Task DownloadCatalog(HttpClient client, string fileUrl, string destinationPath)
+        {
+    #if DEBUG
+            Console.WriteLine("call DownloadCatalog");
+    #endif
+            try
+            {
+                // ファイルを一度にダウンロードしてローカルに保存
+                byte[] fileBytes = await client.GetByteArrayAsync(fileUrl);
+                await File.WriteAllBytesAsync(destinationPath, fileBytes);
+                
+                #if DEBUG
+                Console.WriteLine("ファイルが正常にダウンロードされました。");
+                #endif
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"エラーが発生しました: {ex.Message}");
+            }
+        }
+    //     /// <summary>
+    //     /// Fetches BootCamp drivers from the software update catalog.
+    //     /// </summary>
+    //     /// <param name="catalogUrl">URL of the software update catalog.</param>
+    //     /// <param name="model">The model identifier to look for.</param>
+    //     /// <returns>An array of BootCamp drivers with version and URL.</returns>
+    //     public static async Task<(string Version, string URL)[]> FetchBootCampDrivers(string catalogUrl, string model)
+    //     {
+    // #if DEBUG
+    //         Console.WriteLine("call FetchBootCampDrivers");
+    // #endif
+    //         using var client = new HttpClient();
+    //         DownloadFileAsync
+
+    //         var response = await client.GetStringAsync(catalogUrl);
+
+    //         var xml = XDocument.Parse(response);
+
+    //         // Parse the XML to find BootCamp ESDs that support the specified model.
+    //         var bootcampESDs = from dict in xml.Descendants("dict")
+    //                         let version = dict.Element("Version")?.Value
+    //                         let url = dict.Element("URL")?.Value
+    //                         let supportedModels = dict.Elements("SupportedModels")
+    //                                                     .Where(x => x.Value.Contains(model))
+    //                         where supportedModels.Any()
+    //                         select (Version: version, URL: url);
+
+    //         return bootcampESDs.ToArray();
+    //     }
     }
 }

@@ -5,6 +5,8 @@ namespace Macaron.Core
     {
         public static void GetWindowsImage()
         {
+            
+            ManagedWIM.GetWindowsImage();
 
         }
 
