@@ -5,6 +5,7 @@ using System.Reflection;
 using System.CommandLine;
 using System.Linq;
 using Macaron.Core;
+using System.Runtime.InteropServices;
 
 class Program
 {
@@ -83,7 +84,13 @@ class Program
             // versionOption
         };
 
-        rootCommand.Description = "BootCamp installer downloader and extractor.";
+        var platform = "dotnet tools";
+
+#if !DOTNETTOOLS
+        platform = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.ProcessArchitecture})";
+#endif
+
+        rootCommand.Description = $"BootCamp installer downloader and extractor for {platform}.";
 
         // コマンドが実行されたときの処理を設定
         // ここでパースされた引数を受け取る。

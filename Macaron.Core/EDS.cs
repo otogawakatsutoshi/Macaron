@@ -7,8 +7,9 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 
-#if WINDOWS
+#if (WINDOWS || DOTNETTOOLS)
 using Microsoft.Management.Infrastructure;
 using Microsoft.Win32.TaskScheduler;
 #endif
@@ -34,13 +35,27 @@ namespace Macaron.Core
 #elif OSX
             modelIdentifier = GetCurrentModelForOSX();
 #elif LINUX
-
             modelIdentifier = GetCurrentModelForLinux();
+#elif IOS
+
+#elif ANDROID
+
+#elif DOTNETTOOLS
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                modelIdentifier = GetCurrentModelForWindows();
+            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                modelIdentifier = GetCurrentModelForOSX();
+            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                modelIdentifier = GetCurrentModelForLinux();
+            }
 #endif
             return modelIdentifier;
         }
 
-#if WINDOWS
+#if (WINDOWS || DOTNETTOOLS)
         private static string? GetCurrentModelForWindows()
         {
             string? modelIdentifier = null;
@@ -65,7 +80,9 @@ namespace Macaron.Core
             }
             return modelIdentifier;
         }
-#elif OSX
+#endif
+
+#if (OSX || DOTNETTOOLS)
         private static string? GetCurrentModelForOSX()
         {
             string? modelIdentifier = null;
@@ -98,7 +115,9 @@ namespace Macaron.Core
             }
             return modelIdentifier;
         }
-#elif LINUX
+#endif
+
+#if (LINUX || DOTNETTOOLS)
         private static string? GetCurrentModelForLinux()
         {
             string? modelIdentifier = null;
@@ -124,6 +143,14 @@ namespace Macaron.Core
             }
             return modelIdentifier;
         }
+#endif
+
+#if IOS
+
+#endif
+
+#if ANDROID
+
 #endif
 
         /// <summary>

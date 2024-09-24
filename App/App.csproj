@@ -21,8 +21,19 @@
     <DefineConstants>OSX</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(RuntimeIdentifier)' == 'linux-arm64'">
     <DefineConstants>LINUX</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">
+    <DefineConstants>IOS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'android-arm64'">
+    <DefineConstants>ANDROID</DefineConstants>
+  </PropertyGroup>
+
+  <!-- 簡単に指定する方法がないので、どのOSのランタイムとしてもビルドされなかったらdotnettoolsとする。 -->
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT' and '$(RuntimeIdentifier)' != 'osx-x64' and '$(RuntimeIdentifier)' != 'osx-arm64' and '$(RuntimeIdentifier)' != 'linux-x64' and '$(RuntimeIdentifier)' != 'linux-arm64' and '$(RuntimeIdentifier)' != 'ios-arm64' and '$(RuntimeIdentifier)' != 'android-arm64'">
+    <DefineConstants>DOTNETTOOLS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Macaron.Core\Macaron.Core.csproj" />
