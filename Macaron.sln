@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "App", "App\App.csproj", "{2380D6FA-A3FB-4FE1-8014-8EE0601BA1F9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Macaron.Core", "Macaron.Core\Macaron.Core.csproj", "{944F2C06-A579-49B1-8A0E-F1BBB51C071C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{2380D6FA-A3FB-4FE1-8014-8EE0601BA1F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2380D6FA-A3FB-4FE1-8014-8EE0601BA1F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2380D6FA-A3FB-4FE1-8014-8EE0601BA1F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{944F2C06-A579-49B1-8A0E-F1BBB51C071C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{944F2C06-A579-49B1-8A0E-F1BBB51C071C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{944F2C06-A579-49B1-8A0E-F1BBB51C071C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{944F2C06-A579-49B1-8A0E-F1BBB51C071C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

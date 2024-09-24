@@ -261,7 +261,7 @@ namespace Macaron.Core
         /// <param name="catalogUrl">URL of the software update catalog.</param>
         /// <param name="model">The model identifier to look for.</param>
         /// <returns>An array of BootCamp drivers with version and URL.</returns>
-        public async Task<(string Version, string URL)[]> FetchBootCampDrivers(string catalogUrl, string model)
+        public static async Task<(string Version, string URL)[]> FetchBootCampDrivers(string catalogUrl, string model)
         {
     #if DEBUG
             Console.WriteLine("call FetchBootCampDrivers");
@@ -270,11 +270,22 @@ namespace Macaron.Core
 
             // var response = await client.GetStringAsync(catalogUrl);
 
-            var destinationPath = "file.txt";
+            var destinationPath = "C:\\Users\\katsutoshi\\src\\Macaron\\file.txt";
 
+            //await DownloadCatalog(client, catalogUrl, destinationPath);
+            try
+            {
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                }).Wait();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"例外が発生しました: {ex.Message}");
+            }
             await DownloadCatalog(client, catalogUrl, destinationPath);
 
-    #if DEBUG
+#if DEBUG
             Console.WriteLine("call FetchBootCampDrivers");
     #endif
             // var xml = XDocument.Parse(response);
@@ -293,25 +304,59 @@ namespace Macaron.Core
             return bootcampESDs.ToArray();
         }
 
-        internal async System.Threading.Tasks.Task DownloadCatalog(HttpClient client, string fileUrl, string destinationPath)
+        internal static async System.Threading.Tasks.Task DownloadCatalog(HttpClient client, string fileUrl, string destinationPath)
         {
     #if DEBUG
             Console.WriteLine("call DownloadCatalog");
-    #endif
+#endif
             try
             {
-                // ファイルを一度にダウンロードしてローカルに保存
-                byte[] fileBytes = await client.GetByteArrayAsync(fileUrl);
-                await File.WriteAllBytesAsync(destinationPath, fileBytes);
-                
-                #if DEBUG
-                Console.WriteLine("ファイルが正常にダウンロードされました。");
-                #endif
+                // 応答メッセージを使って詳細なエラーチェックを行う
+                using (HttpResponseMessage response = await client.GetAsync(fileUrl, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    response.EnsureSuccessStatusCode(); // 応答が成功しているか確認
+                    Console.WriteLine("ファイルのダウンロードが開始されました。");
+
+                    // ストリームでファイルを書き込み
+                    using (Stream contentStream = await response.Content.ReadAsStreamAsync(),
+                                   fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+                    {
+                        await contentStream.CopyToAsync(fileStream);
+                    }
+
+                    Console.WriteLine("ファイルが正常にダウンロードされ、保存されました。");
+                }
+            }
+            catch (HttpRequestException e)
+            {
+                Console.WriteLine($"HTTPリクエストエラー: {e.Message}");
+                if (e.InnerException != null)
+                {
+                    Console.WriteLine($"詳細なエラー情報: {e.InnerException.Message}");
+                }
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine($"ファイル書き込みエラー: {e.Message}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"エラーが発生しました: {ex.Message}");
+                Console.WriteLine($"予期しないエラー: {ex.Message}");
             }
+            //try
+            //{
+            //    // ファイルを一度にダウンロードしてローカルに保存
+            //    byte[] fileBytes = await client.GetByteArrayAsync(fileUrl);
+            //    await File.WriteAllBytesAsync(destinationPath, fileBytes);
+                
+            //    #if DEBUG
+            //    Console.WriteLine("ファイルが正常にダウンロードされました。");
+            //    #endif
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine($"エラーが発生しました: {ex.Message}");
+            //}
         }
     //     /// <summary>
     //     /// Fetches BootCamp drivers from the software update catalog.
