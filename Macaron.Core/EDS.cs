@@ -88,9 +88,6 @@ namespace Macaron.Core
 #if (OSX || DOTNETTOOLS)
         private static string? GetCurrentModelForOSX()
         {
-    #if DEBUG
-            Console.WriteLine("call GetCurrentModelForOSX");
-    #endif
             string? modelIdentifier = null;
             try
             {
@@ -270,19 +267,20 @@ namespace Macaron.Core
 
             // var response = await client.GetStringAsync(catalogUrl);
 
-            var destinationPath = "C:\\Users\\katsutoshi\\src\\Macaron\\file.txt";
+            // var destinationPath = "C:\\Users\\katsutoshi\\src\\Macaron\\file.txt";
+            var destinationPath = "/Users/katsutoshi/src/Macaron/file.txt";
 
-            //await DownloadCatalog(client, catalogUrl, destinationPath);
-            try
-            {
-                System.Threading.Tasks.Task.Run(async () =>
-                {
-                }).Wait();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"例外が発生しました: {ex.Message}");
-            }
+            // await DownloadCatalog(client, catalogUrl, destinationPath);
+            // try
+            // {
+            //     System.Threading.Tasks.Task.Run(async () =>
+            //     {
+            //     }).Wait();
+            // }
+            // catch (Exception ex)
+            // {
+            //     Console.WriteLine($"例外が発生しました: {ex.Message}");
+            // }
             await DownloadCatalog(client, catalogUrl, destinationPath);
 
 #if DEBUG
@@ -304,11 +302,134 @@ namespace Macaron.Core
             return bootcampESDs.ToArray();
         }
 
-        internal static async System.Threading.Tasks.Task DownloadCatalog(HttpClient client, string fileUrl, string destinationPath)
+        // dotnet8.0のHTTPClientのバグが治るまではこれ。
+        private static System.Threading.Tasks.Task DownloadCatalogCurl(string fileUrl,  string destinationPath)
         {
     #if DEBUG
-            Console.WriteLine("call DownloadCatalog");
-#endif
+            Console.WriteLine("call DownloadCatalogCurl");
+    #endif
+            return System.Threading.Tasks.Task.Run(() =>{
+                try
+                {
+    #if WINDOWS
+    // windowsはwget実装よりもcurl.exeの方が実装が早かったためcurl
+                    var processInfo = new ProcessStartInfo
+                    {
+                        FileName = @"C:\Windows\System32\curl.exe",
+                        Arguments = $"-o {destinationPath} {fileUrl}",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+    #elif OSX
+    #if DEBUG
+            Console.WriteLine("call Macos curl");
+    #endif
+                    var processInfo = new ProcessStartInfo
+                    {
+    // macはcurlをデフォルトインストール。
+                        FileName = "/usr/bin/curl",
+                        Arguments = $"-o {destinationPath} {fileUrl}",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+    #elif LINUX
+    #if DEBUG
+            Console.WriteLine("call Macos linux");
+    #endif
+                    // Linuxはディストリビューションによる。コマンドの存在確認以後にやる。
+                    string commandPath = "/usr/bin/wget";
+
+
+                    var processInfo = new ProcessStartInfo
+                    {
+                        FileName = "/usr/bin/wget",
+                        Arguments = $"-O {destinationPath} {fileUrl}",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    if (File.Exists(commandPath))
+                    {
+                        processInfo = new ProcessStartInfo
+                        {
+                            FileName = "/usr/bin/curl",
+                            Arguments = $"-o {destinationPath} {fileUrl}",
+                            RedirectStandardOutput = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    }
+    #elif DOTNETTOOLS
+                    // defaultはwindowsにする。
+                    var processInfo = new ProcessStartInfo
+                    {
+                        FileName = @"C:\Windows\System32\curl.exe",
+                        Arguments = $"-o {destinationPath} {fileUrl}",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        processInfo = new ProcessStartInfo
+                        {
+        // macはcurlをデフォルトインストール。
+                            FileName = "/usr/bin/curl",
+                            Arguments = $"-o {destinationPath} {fileUrl}",
+                            RedirectStandardOutput = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        string commandPath = "/usr/bin/wget";
+
+                        processInfo = new ProcessStartInfo
+                        {
+                            FileName = "/usr/bin/wget",
+                            Arguments = $"-O {destinationPath} {fileUrl}",
+                            RedirectStandardOutput = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+
+                        if (File.Exists(commandPath))
+                        {
+                            processInfo = new ProcessStartInfo
+                            {
+                                FileName = "/usr/bin/curl",
+                                Arguments = $"-o {destinationPath} {fileUrl}",
+                                RedirectStandardOutput = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+                        }
+                    }
+    #else 
+    // Androidなど
+    #endif
+                    // プロセスを開始して結果を読み取る
+                    using var process = Process.Start(processInfo)
+                        ?? throw new InvalidOperationException("Failed to start process.");
+
+                    string output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit();
+
+
+                    Console.WriteLine(output);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"An error occurred: {e.Message}");
+                }
+            });
+        }
+
+        private static async System.Threading.Tasks.Task DownloadCatalogHttpClient(HttpClient client, string fileUrl, string destinationPath)
+        {
             try
             {
                 // 応答メッセージを使って詳細なエラーチェックを行う
@@ -357,6 +478,14 @@ namespace Macaron.Core
             //{
             //    Console.WriteLine($"エラーが発生しました: {ex.Message}");
             //}
+        }
+        internal static async System.Threading.Tasks.Task DownloadCatalog(HttpClient client, string fileUrl, string destinationPath)
+        {
+            // dotnet8.0 has httpclient bug https://github.com/dotnet/runtime/issues/97966.
+// #if NET8.0
+            // await DownloadCatalogHttpClient(client, fileUrl, destinationPath);
+// #endif
+            await DownloadCatalogCurl(fileUrl, destinationPath);
         }
     //     /// <summary>
     //     /// Fetches BootCamp drivers from the software update catalog.
