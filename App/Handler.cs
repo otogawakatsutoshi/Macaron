@@ -23,9 +23,6 @@ partial class Program
             ? outputDir
             : Path.GetFullPath(outputDir);
 
-#if DEBUG
-        Console.WriteLine("call if BootCamp");
-#endif
         if (!Directory.Exists(fullOutputdir))
         {
             Directory.CreateDirectory(fullOutputdir);
