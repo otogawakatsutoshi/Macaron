@@ -14,6 +14,8 @@ dotnet build -r osx.10.11-x64
 
 ```bash
 dotnet publish -c Release -r osx-x64 --self-contained true /p:PublishSingleFile=true /p:PublishTrimmed=true
+
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:PublishTrimmed=true
 ```
 
 
