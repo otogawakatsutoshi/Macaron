@@ -258,7 +258,44 @@ namespace Macaron.Core
         /// <param name="catalogUrl">URL of the software update catalog.</param>
         /// <param name="model">The model identifier to look for.</param>
         /// <returns>An array of BootCamp drivers with version and URL.</returns>
-        public static async Task<(string Version, string URL)[]> FetchBootCampDrivers(string catalogUrl, string model)
+        public static (string Version, string URL)[] FetchBootCampDrivers(string catalogUrl, string model)
+        {
+#if DEBUG
+            Console.WriteLine("call FetchBootCampDrivers");
+#endif
+            using var client = new HttpClient();
+
+            var destinationPath = "/Users/katsutoshi/src/Macaron/file.txt";
+
+            DownloadCatalog(client, catalogUrl, destinationPath);
+
+#if DEBUG
+            Console.WriteLine("call FetchBootCampDrivers");
+#endif
+            // var xml = XDocument.Parse(response);
+
+            XDocument xml = XDocument.Load(destinationPath);
+
+            // Parse the XML to find BootCamp ESDs that support the specified model.
+            var bootcampESDs = from dict in xml.Descendants("dict")
+                            let version = dict.Element("Version")?.Value
+                            let url = dict.Element("URL")?.Value
+                            let supportedModels = dict.Elements("SupportedModels")
+                                                        .Where(x => x.Value.Contains(model))
+                            where supportedModels.Any()
+                            select (Version: version, URL: url);
+
+            return bootcampESDs.ToArray();
+        }
+
+        /// <summary>
+        /// Fetches BootCamp drivers from the software update catalog.
+        /// </summary>
+        /// <param name="catalogUrl">URL of the software update catalog.</param>
+        /// <param name="model">The model identifier to look for.</param>
+        /// <returns>An array of BootCamp drivers with version and URL.</returns>
+        [Obsolete("This method is experimental and might be changed or removed in future versions.")]
+        public static async Task<(string Version, string URL)[]> FetchBootCampDriversAsyc(string catalogUrl, string model)
         {
     #if DEBUG
             Console.WriteLine("call FetchBootCampDrivers");
@@ -281,11 +318,11 @@ namespace Macaron.Core
             // {
             //     Console.WriteLine($"例外が発生しました: {ex.Message}");
             // }
-            await DownloadCatalog(client, catalogUrl, destinationPath);
+            await DownloadCatalogAsync(client, catalogUrl, destinationPath);
 
 #if DEBUG
             Console.WriteLine("call FetchBootCampDrivers");
-    #endif
+#endif
             // var xml = XDocument.Parse(response);
 
             XDocument xml = XDocument.Load(destinationPath);
@@ -302,219 +339,52 @@ namespace Macaron.Core
             return bootcampESDs.ToArray();
         }
 
-        // dotnet8.0のHTTPClientのバグが治るまではこれ。
-        private static System.Threading.Tasks.Task DownloadCatalogCurl(string fileUrl,  string destinationPath)
-        {
-    #if DEBUG
-            Console.WriteLine("call DownloadCatalogCurl");
-    #endif
-            return System.Threading.Tasks.Task.Run(() =>{
-                try
-                {
-    #if WINDOWS
-    // windowsはwget実装よりもcurl.exeの方が実装が早かったためcurl
-                    var processInfo = new ProcessStartInfo
-                    {
-                        FileName = @"C:\Windows\System32\curl.exe",
-                        Arguments = $"-o {destinationPath} {fileUrl}",
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-    #elif OSX
-    #if DEBUG
-            Console.WriteLine("call Macos curl");
-    #endif
-                    var processInfo = new ProcessStartInfo
-                    {
-    // macはcurlをデフォルトインストール。
-                        FileName = "/usr/bin/curl",
-                        Arguments = $"-o {destinationPath} {fileUrl}",
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-    #elif LINUX
-    #if DEBUG
-            Console.WriteLine("call Macos linux");
-    #endif
-                    // Linuxはディストリビューションによる。コマンドの存在確認以後にやる。
-                    string commandPath = "/usr/bin/wget";
-
-
-                    var processInfo = new ProcessStartInfo
-                    {
-                        FileName = "/usr/bin/wget",
-                        Arguments = $"-O {destinationPath} {fileUrl}",
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                    if (File.Exists(commandPath))
-                    {
-                        processInfo = new ProcessStartInfo
-                        {
-                            FileName = "/usr/bin/curl",
-                            Arguments = $"-o {destinationPath} {fileUrl}",
-                            RedirectStandardOutput = true,
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-                    }
-    #elif DOTNETTOOLS
-                    // defaultはwindowsにする。
-                    var processInfo = new ProcessStartInfo
-                    {
-                        FileName = @"C:\Windows\System32\curl.exe",
-                        Arguments = $"-o {destinationPath} {fileUrl}",
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                    {
-                        processInfo = new ProcessStartInfo
-                        {
-        // macはcurlをデフォルトインストール。
-                            FileName = "/usr/bin/curl",
-                            Arguments = $"-o {destinationPath} {fileUrl}",
-                            RedirectStandardOutput = true,
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-                    } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                    {
-                        string commandPath = "/usr/bin/wget";
-
-                        processInfo = new ProcessStartInfo
-                        {
-                            FileName = "/usr/bin/wget",
-                            Arguments = $"-O {destinationPath} {fileUrl}",
-                            RedirectStandardOutput = true,
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-
-                        if (File.Exists(commandPath))
-                        {
-                            processInfo = new ProcessStartInfo
-                            {
-                                FileName = "/usr/bin/curl",
-                                Arguments = $"-o {destinationPath} {fileUrl}",
-                                RedirectStandardOutput = true,
-                                UseShellExecute = false,
-                                CreateNoWindow = true
-                            };
-                        }
-                    }
-    #else 
-    // Androidなど
-    #endif
-                    // プロセスを開始して結果を読み取る
-                    using var process = Process.Start(processInfo)
-                        ?? throw new InvalidOperationException("Failed to start process.");
-
-                    string output = process.StandardOutput.ReadToEnd();
-                    process.WaitForExit();
-
-
-                    Console.WriteLine(output);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"An error occurred: {e.Message}");
-                }
-            });
-        }
-
-        private static async System.Threading.Tasks.Task DownloadCatalogHttpClient(HttpClient client, string fileUrl, string destinationPath)
+        private static void DownloadCatalogHttpClient(HttpClient client, string fileUrl, string destinationPath)
         {
             try
             {
-                // 応答メッセージを使って詳細なエラーチェックを行う
-                using (HttpResponseMessage response = await client.GetAsync(fileUrl, HttpCompletionOption.ResponseHeadersRead))
-                {
-                    response.EnsureSuccessStatusCode(); // 応答が成功しているか確認
-                    Console.WriteLine("ファイルのダウンロードが開始されました。");
+                byte[] fileBytes = client.GetByteArrayAsync(fileUrl).Result;
+                File.WriteAllBytes(destinationPath, fileBytes);
 
-                    // ストリームでファイルを書き込み
-                    using (Stream contentStream = await response.Content.ReadAsStreamAsync(),
-                                   fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
-                    {
-                        await contentStream.CopyToAsync(fileStream);
-                    }
+                #if DEBUG
+                Console.WriteLine("ファイルが正常にダウンロードされました。");
+                #endif
+            }
+            catch (AggregateException ex)
+            {
+                // AggregateException で例外がラップされるため、InnerException を確認
+                Console.WriteLine("An error occurred: " + ex.InnerException?.Message);
+            }
+        }
 
-                    Console.WriteLine("ファイルが正常にダウンロードされ、保存されました。");
-                }
-            }
-            catch (HttpRequestException e)
+        public static void DownloadCatalog(HttpClient client, string fileUrl, string destinationPath)
+        {
+            DownloadCatalogHttpClient(client, fileUrl, destinationPath);
+        }
+
+        [Obsolete("This method is experimental and might be changed or removed in future versions.")]
+        private static async System.Threading.Tasks.Task DownloadCatalogHttpClientAsync(HttpClient client, string fileUrl, string destinationPath)
+        {
+            try
             {
-                Console.WriteLine($"HTTPリクエストエラー: {e.Message}");
-                if (e.InnerException != null)
-                {
-                    Console.WriteLine($"詳細なエラー情報: {e.InnerException.Message}");
-                }
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine($"ファイル書き込みエラー: {e.Message}");
+               // ファイルを一度にダウンロードしてローカルに保存
+               byte[] fileBytes = await client.GetByteArrayAsync(fileUrl);
+               await File.WriteAllBytesAsync(destinationPath, fileBytes);
+                
+               #if DEBUG
+               Console.WriteLine("ファイルが正常にダウンロードされました。");
+               #endif
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"予期しないエラー: {ex.Message}");
+               Console.WriteLine($"エラーが発生しました: {ex.Message}");
             }
-            //try
-            //{
-            //    // ファイルを一度にダウンロードしてローカルに保存
-            //    byte[] fileBytes = await client.GetByteArrayAsync(fileUrl);
-            //    await File.WriteAllBytesAsync(destinationPath, fileBytes);
-                
-            //    #if DEBUG
-            //    Console.WriteLine("ファイルが正常にダウンロードされました。");
-            //    #endif
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine($"エラーが発生しました: {ex.Message}");
-            //}
         }
-        internal static async System.Threading.Tasks.Task DownloadCatalog(HttpClient client, string fileUrl, string destinationPath)
+
+        [Obsolete("This method is experimental and might be changed or removed in future versions.")]
+        public static async System.Threading.Tasks.Task DownloadCatalogAsync(HttpClient client, string fileUrl, string destinationPath)
         {
-            // dotnet8.0 has httpclient bug https://github.com/dotnet/runtime/issues/97966.
-// #if NET8.0
-            // await DownloadCatalogHttpClient(client, fileUrl, destinationPath);
-// #endif
-            await DownloadCatalogCurl(fileUrl, destinationPath);
+            await DownloadCatalogHttpClientAsync(client, fileUrl, destinationPath);
         }
-    //     /// <summary>
-    //     /// Fetches BootCamp drivers from the software update catalog.
-    //     /// </summary>
-    //     /// <param name="catalogUrl">URL of the software update catalog.</param>
-    //     /// <param name="model">The model identifier to look for.</param>
-    //     /// <returns>An array of BootCamp drivers with version and URL.</returns>
-    //     public static async Task<(string Version, string URL)[]> FetchBootCampDrivers(string catalogUrl, string model)
-    //     {
-    // #if DEBUG
-    //         Console.WriteLine("call FetchBootCampDrivers");
-    // #endif
-    //         using var client = new HttpClient();
-    //         DownloadFileAsync
-
-    //         var response = await client.GetStringAsync(catalogUrl);
-
-    //         var xml = XDocument.Parse(response);
-
-    //         // Parse the XML to find BootCamp ESDs that support the specified model.
-    //         var bootcampESDs = from dict in xml.Descendants("dict")
-    //                         let version = dict.Element("Version")?.Value
-    //                         let url = dict.Element("URL")?.Value
-    //                         let supportedModels = dict.Elements("SupportedModels")
-    //                                                     .Where(x => x.Value.Contains(model))
-    //                         where supportedModels.Any()
-    //                         select (Version: version, URL: url);
-
-    //         return bootcampESDs.ToArray();
-    //     }
     }
 }
